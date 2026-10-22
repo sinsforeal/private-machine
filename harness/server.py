@@ -119,7 +119,7 @@ def release_ticket(ticket: str) -> None:
                    creationflags=NO_WINDOW)
 
 
-def serve(port: int, arm=None, ticket_who: str | None = None) -> None:
+def serve(port: int, arm=None, ticket_who: str | None = None, run_id: str | None = None) -> None:
     from harness.arm import Arm
 
     arm = arm or Arm()
@@ -140,6 +140,9 @@ def serve(port: int, arm=None, ticket_who: str | None = None) -> None:
             pass
         if ticket:
             release_ticket(ticket)
+        if run_id:
+            from harness.launch import release_port
+            release_port(port, run_id)
 
 
 def main() -> None:
@@ -147,9 +150,10 @@ def main() -> None:
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--ticket-who", default=None)
     parser.add_argument("--log-file", default=None)
+    parser.add_argument("--run-id", default=None)
     args = parser.parse_args()
     setup_logging(args.log_file)
-    serve(args.port, ticket_who=args.ticket_who)
+    serve(args.port, ticket_who=args.ticket_who, run_id=args.run_id)
 
 
 if __name__ == "__main__":
