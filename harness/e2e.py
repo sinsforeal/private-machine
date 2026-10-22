@@ -58,14 +58,14 @@ def run_live(run_id: str, run_dir: Path, port: int) -> int:
     for ts, text in turns:
         n_before = len(gateway_calls())
         wall0 = time.time()
-        call(port, "POST", "/control/send", {"text": text, "ts": ts}, timeout=600)
+        call(port, "POST", "/control/send", {"text": text, "ts": ts}, timeout=1700)
         base = datetime.fromisoformat(ts)
         reply = None
         minutes = 0
         while reply is None and minutes < 10:
             minutes += 1
             to = (base + timedelta(minutes=minutes)).isoformat()
-            outs = call(port, "POST", "/control/advance", {"to": to}, timeout=600)["outputs"]
+            outs = call(port, "POST", "/control/advance", {"to": to}, timeout=1700)["outputs"]
             reply = next((o for o in outs if o["kind"] == "reply"), None)
         wall = time.time() - wall0
         row = {"him": text, "send_ts": ts, "wall_s": round(wall, 1)}

@@ -129,7 +129,7 @@ class Arm:
             return {"ok": True, "home": str(self.home), "virtual_ts": _iso(self.clock.now())}
 
     def _model_config(self) -> dict:
-        connection = {"base_url": self.base_url, "model": "deepseek-v4.1-flash-1017", "api_key": "bz", "startup_script": ""}
+        connection = {"base_url": self.base_url, "model": "deepseek-v4.1-flash-1017", "api_key": "bz", "startup_script": "", "context_window": 131072}
         return {
             "chat": {"Default": dict(connection), "UnitTestEvaluator": dict(connection)},
             "embedding": {"base_url": self.base_url, "model": EMBED_MODEL, "api_key": "bz", "dimensions": EMBED_DIMS},
