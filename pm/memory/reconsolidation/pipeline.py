@@ -33,6 +33,7 @@ commit. A cancelled run keeps the groups that it committed before.
 """
 from __future__ import annotations
 
+from pm import vclock
 import asyncio
 import hashlib
 import re
@@ -609,7 +610,7 @@ def reconsolidate(store, *, complete: TextCompletion, embeddings, config: Recons
     prompts = prompts or load_prompts()
     calls = ModelCalls(complete, cancel=cancel)
     report = ReconsolidationReport(run_id=uuid.uuid4().hex[:12], forced=force)
-    run = _Run(store, calls, embeddings, config, prompts, report, now or datetime.utcnow(), cancel,
+    run = _Run(store, calls, embeddings, config, prompts, report, now or vclock.utcnow(), cancel,
                log or (lambda message: None))
     # Memory reads images only as alt text. Write the missing ones first,
     # so no "no description yet" reaches a summary, fact, or narrative.
@@ -628,7 +629,7 @@ def reconsolidate(store, *, complete: TextCompletion, embeddings, config: Recons
     run.narratives()
     run.prepare_index(report.created_ids)
     report.model_calls = calls.calls
-    report.finished_at = datetime.utcnow()
+    report.finished_at = vclock.utcnow()
 
     def receipt(batch):
         batch.set_consolidation_receipt(f"{RECEIPT_PREFIX}{report.run_id}",

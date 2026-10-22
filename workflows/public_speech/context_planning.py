@@ -20,6 +20,7 @@ recorded in the trace; it never stops the reply. Cancellation propagates.
 """
 from __future__ import annotations
 
+from pm import vclock
 from datetime import datetime
 from pathlib import Path
 
@@ -129,7 +130,7 @@ async def plan_reply_context(view, plan_name: str, focus: FocusInput, embeddings
     queries = focus_queries(focus)
     vectors, semantic = await _embed_focus(embeddings, queries, cancel)
     focus_model = Focus(texts=queries, vectors=vectors, required_ids=focus.required_ids, exclude_ids=focus.exclude_ids)
-    now = now or datetime.utcnow()
+    now = now or vclock.utcnow()
     plan = plan_context(records, spec, focus_model, vector_of=vector_of, tokens_of=tokens_of, now=now)
     embedded = 0
     dialogue_lanes = [lane for lane in spec.lanes if lane.select == "recent"]

@@ -7,6 +7,7 @@ private work. Bus publication alone is not an acknowledgment.
 """
 from __future__ import annotations
 
+from pm import vclock
 from datetime import datetime, timedelta
 from typing import Callable, Sequence
 
@@ -29,7 +30,7 @@ class CognitiveControl(BusModule):
     """
 
     def __init__(self, *args, ghost, config: ControlConfig | None = None,
-                 now: Callable[[], datetime] = datetime.utcnow, **kwargs):
+                 now: Callable[[], datetime] = vclock.utcnow, **kwargs):
         super().__init__(*args, **kwargs)
         self.ghost = ghost
         self.config = config or ControlConfig()

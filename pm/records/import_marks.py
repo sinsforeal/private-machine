@@ -9,6 +9,7 @@ user, ``SourceKind.Self`` for the companion), so evidence roles do not change.
 """
 from __future__ import annotations
 
+from pm import vclock
 from datetime import datetime
 from enum import StrEnum
 
@@ -46,7 +47,7 @@ class ImportMark(BaseModel):
     source_sha256: str = ""
     source_row: int = 0
     synthetic: bool = False
-    imported_at: datetime = Field(default_factory=datetime.utcnow)
+    imported_at: datetime = Field(default_factory=vclock.utcnow)
 
 
 def import_mark(record: RecordBase) -> ImportMark | None:

@@ -5,6 +5,7 @@ Delivery can repeat after a crash. Consumers deduplicate by the utterance ID.
 """
 from __future__ import annotations
 
+from pm import vclock
 from datetime import datetime, timezone
 
 from pm.bus.envelopes import Envelope, new_id
@@ -61,7 +62,7 @@ def commit_public_reply(ghost, text: str, correlation: str, *, commit_id: str,
                       "generation_state_tick": context.state_tick if context is not None else None,
                       "generation_source_revisions": dict(context.revisions) if context is not None else {},
                       "responding_to_ids": list(context.stimulus_user_ids) if context is not None else [],
-                      "executed_at": datetime.now(timezone.utc).isoformat()},
+                      "executed_at": vclock.now_aware().isoformat()},
         ))
         resolved_ids = set(context.stimulus_user_ids) if context is not None else set()
         if exchange is not None:

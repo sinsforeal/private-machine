@@ -9,6 +9,7 @@ domain: every memory object shares a base identity, causal time range, trace tag
 invariant: RecordBase.type resolves through the public RecordKind registry, and owner-backed access assumes RecordOwner stores knoxels by stable ids.
 """
 
+from pm import vclock
 from datetime import datetime
 import pickle
 import logging
@@ -65,14 +66,14 @@ def get_causal_datetime() -> datetime:
     Return real datetime now in UTC, or get from test infrastructure for dry runs.
     For when simulating past (not implemented yet)
     """
-    return datetime.utcnow()
+    return vclock.utcnow()
 
 
 def get_real_datetime() -> datetime:
     """
     Real world time, for system.
     """
-    return datetime.utcnow()
+    return vclock.utcnow()
 
 # Sentinel reality id meaning "the real world" until a bootstrap/converter
 # materializes the actual RealityKnoxel and rewrites default scopes.
@@ -145,10 +146,10 @@ class RecordBase(BaseModel):
     sub_tick_id: int = 0
     content: str
     embedding: list[float] = Field(default_factory=list, repr=False)
-    timestamp_creation: datetime = Field(default_factory=datetime.utcnow)
+    timestamp_creation: datetime = Field(default_factory=vclock.utcnow)
     timestamp_world_begin: datetime = Field(default_factory=get_causal_datetime)
     timestamp_world_end: datetime = Field(default_factory=get_causal_datetime)
-    last_accessed: datetime = Field(default_factory=datetime.utcnow)
+    last_accessed: datetime = Field(default_factory=vclock.utcnow)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     lineage: RecordLineage | None = None
     scope: RecordScope = Field(default_factory=RecordScope, description="Reality + frame scoping; default real/in_world.")
@@ -221,7 +222,7 @@ class RecordBase(BaseModel):
 
     def touch_last_accessed(self) -> None:
         """Explicitly mark this knoxel as accessed (call from retrieval/tools, never from dumps)."""
-        object.__setattr__(self, "last_accessed", datetime.utcnow())
+        object.__setattr__(self, "last_accessed", vclock.utcnow())
 
     def get_emotional_state_at_time(self) -> str:
         """

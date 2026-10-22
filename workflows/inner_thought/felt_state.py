@@ -16,6 +16,7 @@ presented as an absence of movement.
 """
 from __future__ import annotations
 
+from pm import vclock
 from datetime import datetime
 
 from pm.records.mental_state import FullMentalState
@@ -119,7 +120,7 @@ def project_channels(state: FullMentalState, *, active_goals=None,
     preceding cycle's ``CycleState.qualia_channels``. Passing ``None`` or an
     absent channel initializes that channel with zero derivatives.
     """
-    now = now or datetime.now()
+    now = now or vclock.utcnow()
     result: dict[str, QualeChannelState] = {}
     for channel_id in CHANNELS:
         prior = previous[channel_id] if previous is not None and channel_id in previous else None

@@ -14,6 +14,7 @@ invariant: a turn record names exactly one slot and one tick.
 """
 from __future__ import annotations
 
+from pm import vclock
 from datetime import datetime
 from typing import List, Optional
 
@@ -145,7 +146,7 @@ class GwtTurnRecord(BaseModel):
     stimulus_ids: List[int] = Field(default_factory=list)
     knoxel_ids: List[int] = Field(default_factory=list)
     summary: str = ""
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=vclock.utcnow)
     shard_changes: List[ShardChange] = Field(default_factory=list)
     experience_id: Optional[int] = None
     decision_id: Optional[int] = None

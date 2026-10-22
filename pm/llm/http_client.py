@@ -11,6 +11,7 @@ not affect cache keys. A cache hit does not establish endpoint readiness.
 from __future__ import annotations
 
 import asyncio
+from pm import vclock
 import json
 import os
 import secrets
@@ -164,6 +165,8 @@ class JsonClient:
         except ValueError:
             data = None
         error = completion_error(data) if response.is_success else ModelError(f"HTTP {response.status_code}")
+        # Harness patch: report the gateway call id (x-bz-call-id) to the harness hook.
+        vclock.note_call(getattr(response, "headers", {}).get("x-bz-call-id"), route)
         finish_prompt_log(path, response=data, error=error, elapsed=time.monotonic() - started,
                           replayed=replayed is not None)
         logger.info("Model request end route=%s status=%s seconds=%.3f", route, response.status_code,

@@ -18,6 +18,7 @@ Write and read the metadata only through :func:`attach_images` and
 """
 from __future__ import annotations
 
+from pm import vclock
 import base64
 import hashlib
 import re
@@ -58,7 +59,7 @@ class MediaProvenance(BaseModel):
     artifact_path: str = ""
     server: str = ""
     tool: str = ""
-    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = Field(default_factory=lambda: vclock.now_aware().isoformat())
 
 
 class RecordImage(BaseModel):

@@ -14,6 +14,7 @@ mental state directly: only the main appraisal path does that.
 """
 from __future__ import annotations
 
+from pm import vclock
 from pm.records.copying import pickle_copy
 
 from datetime import datetime, timedelta
@@ -202,7 +203,7 @@ class PrivateThoughtLoop(CognitiveWorkflow):
             latest_user = self._latest_user_dialogue()
             private_thought_ids = self._private_thought_ids()
             open_episode, latest_thought = self._open_episode()
-            now = datetime.utcnow()
+            now = vclock.utcnow()
 
         previous_cycle = states[-1] if states else None
         # The private cycle keeps the accepted EMA state of the main cycle
@@ -211,7 +212,7 @@ class PrivateThoughtLoop(CognitiveWorkflow):
         # cycle the state is the EMA readout of an empty history: the defaults.
         mental_state = (pickle_copy(previous_cycle.mental_state)
                         if previous_cycle is not None else FullMentalState())
-        age_seconds = max(0.0, (datetime.utcnow() - previous_cycle.timestamp).total_seconds()) \
+        age_seconds = max(0.0, (vclock.utcnow() - previous_cycle.timestamp).total_seconds()) \
             if previous_cycle is not None else 0.0
 
         main_frame: dict = {}
@@ -456,7 +457,7 @@ class PrivateThoughtLoop(CognitiveWorkflow):
         drivers = [int(item) for item in parsed.evidence_ids]
         sample = project_channels(state, active_goals=active_intentions(view),
                                   previous=channels, previous_time=previous_time,
-                                  now=datetime.utcnow(), driver_ids=drivers)
+                                  now=vclock.utcnow(), driver_ids=drivers)
         gate_ids = {int(item) for item in parsed.evidence_ids} | {thought.id}
         quale_ids: list[int] = []
         for channel_id in notable_channels(sample):
@@ -599,7 +600,7 @@ class PrivateThoughtLoop(CognitiveWorkflow):
                 return
             control = getattr(self, "cognitive_control", None)
             user = self._latest_user_dialogue()
-            elapsed = max(0.0, (datetime.utcnow() - datetime.fromisoformat(episode["started_at"])).total_seconds())
+            elapsed = max(0.0, (vclock.utcnow() - datetime.fromisoformat(episode["started_at"])).total_seconds())
             reason = None
             if (control is not None and thought.metadata.get("control_generation") is not None
                     and thought.metadata["control_generation"] != control.generation):
@@ -654,7 +655,7 @@ class PrivateThoughtLoop(CognitiveWorkflow):
         for a bounded review time.
         """
         prior = getattr(self, "_episode_state", None) or {}
-        now = datetime.utcnow()
+        now = vclock.utcnow()
         limits = self._episode_limits()
         step = int(prior.get("sequence", -1)) + 1
         started_at = prior.get("started_at") or now.isoformat()

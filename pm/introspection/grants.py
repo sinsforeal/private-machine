@@ -11,6 +11,7 @@ boundary and the interpretation.
 """
 from __future__ import annotations
 
+from pm import vclock
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 import hashlib
@@ -62,7 +63,7 @@ CREDENTIAL_PATTERNS: tuple[str, ...] = (
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return vclock.now_aware()
 
 
 def _glob_regex(pattern: str) -> "re.Pattern[str]":

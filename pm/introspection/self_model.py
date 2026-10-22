@@ -11,6 +11,7 @@ The module writes no memory by itself. The caller commits the batch.
 """
 from __future__ import annotations
 
+from pm import vclock
 from datetime import datetime, timezone
 from typing import Iterable
 
@@ -28,7 +29,7 @@ __all__ = [
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return vclock.now_aware()
 
 
 def capability_belief_key(name: str) -> str:

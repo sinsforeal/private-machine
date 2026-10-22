@@ -6,6 +6,7 @@ and simulated events remain available with explicit attribution.
 """
 from __future__ import annotations
 
+from pm import vclock
 from collections import Counter
 from datetime import datetime, timezone
 import math
@@ -184,7 +185,7 @@ def candidate(view, key: int, raw: RecordBase | dict, *, terms=None, score=0.0, 
     source_ids = sorted(source_ids)
     stale = (bool(metadata.get("stale")) or data.get("active") is False
              or data.get("status") in {"superseded", "retracted"}
-             or bool(data.get("invalid_at") and utc_time(data["invalid_at"]) <= datetime.now(timezone.utc)))
+             or bool(data.get("invalid_at") and utc_time(data["invalid_at"]) <= vclock.now_aware()))
     if raw["__type__"] in {"WorldPlaceKnoxel", "WorldObjectKnoxel", "BodyEpisodeKnoxel"}:
         stale = True  # A recalled observation never establishes current world state.
     kind = memory_kind(raw)

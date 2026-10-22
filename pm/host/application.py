@@ -11,6 +11,7 @@ import time
 from abc import ABC, abstractmethod
 from typing import Callable
 
+from pm import vclock
 from pm.bus.bus import BusSystem, Mailbox
 from pm.bus.envelopes import Envelope, new_id
 from pm.host.diagnostics import join_thread
@@ -147,6 +148,9 @@ class BusModule(ABC):
         else:
             wait = 0.0
 
+        # Harness patch: in stepped mode a wait is capped, so the thread
+        # re-reads the virtual clock; vclock.busy counts work in flight.
+        wait = vclock.wait_cap(wait)
         batch = self.mailbox.take_batch(self.stop_event, wait)
 
         if self.stop_event.is_set():
@@ -154,13 +158,15 @@ class BusModule(ABC):
             return False
 
         if batch:
-            self._logged_batch(batch)
+            with vclock.busy():
+                self._logged_batch(batch)
             return True
 
         now = self.clock()
         if self._next_tick is not None and now >= self._next_tick:
             self._next_tick = now + self.tick_seconds
-            self._logged_batch([])
+            with vclock.busy():
+                self._logged_batch([])
             return True
 
         return False

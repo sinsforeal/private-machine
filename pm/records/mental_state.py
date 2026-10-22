@@ -10,6 +10,7 @@ invariant: `VectorModelReservedSize` stays stable and new appraisal/readout axes
 
 from __future__ import annotations
 
+from pm import vclock
 import datetime
 import math
 from typing import TYPE_CHECKING, Dict, List, Sequence, Type, TypeVar, Optional, Tuple
@@ -993,7 +994,7 @@ class MentalStateSample(BaseModel):
     axis that can add up.
     """
 
-    timestamp: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
+    timestamp: datetime.datetime = Field(default_factory=vclock.utcnow)
     entity_ids: List[int] = Field(default_factory=list)
     delta: Dict[int, float] = Field(default_factory=dict)
 

@@ -22,6 +22,7 @@ caller supplies the active wiring and the real receipts.
 """
 from __future__ import annotations
 
+from pm import vclock
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
@@ -44,7 +45,7 @@ __all__ = [
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return vclock.now_aware()
 
 
 class CapabilityState(StrEnum):

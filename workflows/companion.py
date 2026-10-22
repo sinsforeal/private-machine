@@ -5,6 +5,7 @@ points in ``pm.app`` receive this module; the runtime never imports it.
 """
 from __future__ import annotations
 
+from pm import vclock
 from datetime import datetime
 import time
 from pathlib import Path
@@ -395,7 +396,7 @@ def build_app(
             run = supervisor.status(event["run_id"])
             parent = run.get("parent_correlation", "")
             event = {**event, "artifact_path": run.get("artifact_path", ""),
-                     "executed_at": datetime.utcnow().isoformat()}
+                     "executed_at": vclock.utcnow().isoformat()}
         except Exception:
             parent = ""
         topic = "workflow.question" if event.get("event") == "waiting_for_input" else "workflow.event"

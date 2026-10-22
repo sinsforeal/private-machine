@@ -6,6 +6,7 @@ sends the error back in a repair turn.
 """
 from __future__ import annotations
 
+from pm import vclock
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -203,7 +204,7 @@ class ReconsolidationReport(BaseModel):
 
     run_id: str = ""
     forced: bool = False
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=vclock.utcnow)
     finished_at: datetime | None = None
     unclustered_events: int = 0
     topical_ids: list[int] = Field(default_factory=list)

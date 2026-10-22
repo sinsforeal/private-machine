@@ -13,6 +13,7 @@ each run. The phases call the model only through that tool.
 """
 from __future__ import annotations
 
+from pm import vclock
 from pm.records.copying import pickle_copy
 
 import asyncio
@@ -214,7 +215,7 @@ def seconds_since_user_input(ghost, exclude_ids) -> float | None:
              and int(knoxel.id) not in excluded]
     if not times:
         return None
-    return max(0.0, (datetime.utcnow() - max(times)).total_seconds())
+    return max(0.0, (vclock.utcnow() - max(times)).total_seconds())
 
 
 class MainCogLoop(CognitiveWorkflow):
@@ -560,7 +561,7 @@ class MainCogLoop(CognitiveWorkflow):
             entity_names=entity_names,
             state_summary=_state_summary(self.ghost),
             previous_state=previous,
-            cycle_time=datetime.utcnow(),
+            cycle_time=vclock.utcnow(),
             state_history=history,
             personality=PersonalityProfile.init_from_vector(self.ghost.ghost_config.personality_profile),
             active_goals=active_goal_texts(self.ghost)[:8],
@@ -756,7 +757,7 @@ class MainCogLoop(CognitiveWorkflow):
                     "event": state,
                     "artifact_path": artifact,
                     "evidence": dict(envelope.payload),
-                    "executed_at": event.executed_at or datetime.utcnow().isoformat(),
+                    "executed_at": event.executed_at or vclock.utcnow().isoformat(),
                 },
             )
             result = feature.id, text, "workflow.event"
@@ -909,7 +910,7 @@ class MainCogLoop(CognitiveWorkflow):
             accepted_focus = stage_focus(changes, self._memory_view,
                 instruction=focus.instruction, focus=focus.model_dump(mode="json"),
                 companion_name=self.ghost.get_companion_name(),
-                expires_at=(datetime.utcnow() + timedelta(seconds=focus.seconds)).isoformat(),
+                expires_at=(vclock.utcnow() + timedelta(seconds=focus.seconds)).isoformat(),
                 lineage=lineage.model_copy(update={"operation": "focus_acceptance"}))
             created_order.append(accepted_focus.id)
         memory_evidence = [item.model_dump(mode="json") for item in work.selected_memories]
@@ -1083,7 +1084,7 @@ class MainCogLoop(CognitiveWorkflow):
         for item in entered:
             item.entered_tick = tick if item.entered_tick == expected else item.entered_tick
         state.tick_id = tick
-        state.timestamp = datetime.utcnow()
+        state.timestamp = vclock.utcnow()
         state.control_generation = self._control_generation
         state.dispatches = [ActionDispatchRef(
             action_id=created_id, group=dispatch.group, correlation_id=dispatch.correlation_id,

@@ -14,6 +14,7 @@ evidence limit instead of a reconstructed mechanism.
 """
 from __future__ import annotations
 
+from pm import vclock
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 import hashlib
@@ -37,7 +38,7 @@ __all__ = [
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return vclock.now_aware()
 
 
 #: Record kinds that carry a decision and therefore anchor an episode.

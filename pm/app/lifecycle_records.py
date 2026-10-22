@@ -14,6 +14,7 @@ event.
 """
 from __future__ import annotations
 
+from pm import vclock
 from datetime import datetime
 from uuid import uuid4
 
@@ -95,7 +96,7 @@ def record_startup(ghost, *, boot_id: str | None = None, now: datetime | None = 
             "gap_seconds": float(existing.metadata.get("gap_seconds", 0.0)),
             "duplicate": True,
         }
-    now = now or datetime.utcnow()
+    now = now or vclock.utcnow()
     activity = last_known_activity(ghost)
     gap_seconds = max(0.0, (now - activity).total_seconds()) if activity else 0.0
     shutdown = last_completed_shutdown(ghost)
@@ -143,7 +144,7 @@ def record_shutdown(ghost, *, boot_id: str | None = None, now: datetime | None =
     existing = _find_system_event(ghost, "clean_shutdown", boot_id) if boot_id else None
     if existing is not None:
         return int(existing.id)
-    now = now or datetime.utcnow()
+    now = now or vclock.utcnow()
     text = f"I stopped cleanly at {now.isoformat()}."
     feature = _system_feature(text, event="clean_shutdown", boot_id=boot_id, stopped_at=now.isoformat())
     return int(ghost.store_knoxel(feature).id)
