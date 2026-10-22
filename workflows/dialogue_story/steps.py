@@ -32,6 +32,7 @@ is tested directly without a kernel, model, or MemoryStore.
 from __future__ import annotations
 
 import asyncio
+import re
 from pathlib import Path
 from pm.context_render.turns import Role, Turn
 from pm.llm.completion import AsyncTextCompletion
@@ -233,23 +234,32 @@ def clean_reply(raw: str, companion_name: str, partner_name: str, *, prefill: st
             cut = min(cut, index)
     reply = reply[:cut].strip()
 
-    own_markers = [
-        f"\n{companion_name} says:", f"{companion_name} says:",
-        f"\n{companion_name}:", f"{companion_name}:",
-    ]
-    last_end = 0
-    for marker in own_markers:
-        index = reply.rfind(marker)
-        if index != -1:
-            last_end = max(last_end, index + len(marker))
-    candidate = reply[last_end:].strip()
-    if candidate:
-        reply = candidate
-
-    if reply.startswith('"') and reply.endswith('"') and len(reply) > 1:
-        reply = reply[1:-1].strip()
-    elif reply.endswith('"') and reply.count('"') % 2 == 1:
-        reply = reply[:-1].rstrip()
+    # FAIRNESS PATCH (bz P arm, 2026-10-22): the old code kept only the text after
+    # the LAST own marker, so a multi-line continuation delivered its 4th line and
+    # dropped the first, which answered the user. Now every own-marker segment up
+    # to the first other-speaker marker is kept, in order, one bubble per line.
+    # Text before the first own marker is the continuation of the prefill's open
+    # quote (kept as bubble 1) when a prefill was sent; without a prefill it is a
+    # preamble and is dropped when own markers follow.
+    own_re = re.compile(rf"{re.escape(companion_name)} says:|{re.escape(companion_name)}:")
+    parts = own_re.split(reply)
+    lead, segments = parts[0], parts[1:]
+    bubbles = []
+    if lead.strip() and (prefill or not segments):
+        bubbles.append(lead)
+    bubbles.extend(segments)
+    cleaned = []
+    for bubble in bubbles:
+        bubble = bubble.strip()
+        if bubble.startswith('"') and bubble.endswith('"') and len(bubble) > 1:
+            bubble = bubble[1:-1].strip()
+        elif bubble.endswith('"') and bubble.count('"') % 2 == 1:
+            bubble = bubble[:-1].rstrip()
+        elif bubble.startswith('"') and bubble.count('"') % 2 == 1:
+            bubble = bubble[1:].lstrip()
+        if bubble:
+            cleaned.append(bubble)
+    reply = "\n".join(cleaned) if cleaned else reply
     return strip_narrator_setup(reply, partner_name)
 
 

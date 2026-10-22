@@ -32,7 +32,9 @@ STAMP = re.compile(r"^\s*\[[A-Z][a-z]{2}[ ,]+\d{1,2}:\d{2}\]", re.M)
 
 def run_live(run_id: str, run_dir: Path, port: int, tomoe: bool = False) -> int:
     """Momoka (ja, 2 turns) or Tomoe (en, 1 turn), real cognition through the gateway: per-reply numbers."""
-    for _ in range(120):
+    # The server waits for its limits ticket before it listens (the gate doubles
+    # asks while the PC is busy), so allow 600 s.
+    for _ in range(600):
         try:
             call(port, "GET", "/control/state", timeout=2)
             break
