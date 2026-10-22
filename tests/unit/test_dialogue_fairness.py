@@ -47,6 +47,10 @@ class FairnessTests(unittest.TestCase):
         raw = PREFILL + 'one"\nMomoka says: "two"'
         self.assertEqual(clean_reply(raw, "Momoka", "User", prefill=PREFILL), "one\ntwo")
 
+    def test_lone_quote_from_the_model_is_empty(self):
+        # run bz_p_e2e_live_10426 call 465: the model returned a single '"'
+        self.assertEqual(clean_reply('"', "Momoka", "User", prefill=PREFILL), "")
+
     def test_other_speaker_first_gives_nothing_invented(self):
         raw = 'Momoka says: "one"\nUser says: "x"\nMomoka says: "late"'
         self.assertEqual(clean_reply(raw, "Momoka", "User"), "one")

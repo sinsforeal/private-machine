@@ -259,7 +259,7 @@ def clean_reply(raw: str, companion_name: str, partner_name: str, *, prefill: st
             bubble = bubble[1:].lstrip()
         if bubble:
             cleaned.append(bubble)
-    reply = "\n".join(cleaned) if cleaned else reply
+    reply = "\n".join(cleaned)
     return strip_narrator_setup(reply, partner_name)
 
 
