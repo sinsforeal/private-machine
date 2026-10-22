@@ -74,7 +74,9 @@ class CognitiveControl(BusModule):
         envelopes and the wake path replays them, so the record still reaches
         a cycle and the body poller can clear its pending observation.
         """
-        if envelope.topic == "minecraft.world":
+        # Harness patch: bench environment events arrive as task.telemetry
+        # and must not cut a wait short.
+        if envelope.topic in {"minecraft.world", "task.telemetry"}:
             return True
         return envelope.topic == "workflow.event" and envelope.payload.get("event") in CognitiveControl.DEFERRED_EVENTS
 

@@ -36,12 +36,20 @@ PHASES = {
 }
 
 
+#: Harness patch: phase names a test bench skips. Empty in normal runs.
+SKIPPED_PHASES: set[str] = set()
+
+
 def run(context) -> dict:
     """Run one phase and return its role result for the kernel."""
     environment = context.runtime.environment
     if context.phase == "intake":
         request = CycleRequest.model_validate(yaml_util.safe_load(environment.read_text("inbox/request.yaml")))
         work = intake.start(request)
+    elif context.phase in SKIPPED_PHASES:
+        # Harness patch: a removal test skips this phase and keeps the work as is.
+        work = read_work(environment)
+        work.receipt(context.phase, "skipped by harness")
     else:
         work = PHASES[context.phase].run(context, read_work(environment))
     write_work(environment, work)
