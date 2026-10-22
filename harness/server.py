@@ -9,14 +9,24 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import subprocess
 import sys
 import threading
-import traceback
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 LIMITS_CLIENT = r"F:\REPS2\Meta_Orchestrator\tools\limits\client.py"
 NO_WINDOW = 0x08000000
+
+
+LOG = logging.getLogger("bz.server")
+
+
+def setup_logging(path: str | None) -> None:
+    handlers = [logging.FileHandler(path, encoding="utf-8")] if path else [logging.StreamHandler()]
+    logging.basicConfig(level=logging.INFO, handlers=handlers, force=True,
+                        format="%(asctime)s %(threadName)s %(name)s %(message)s")
 
 
 def make_handler(arm, shutdown):
@@ -24,8 +34,17 @@ def make_handler(arm, shutdown):
         def log_message(self, *args):  # keep logs quiet
             pass
 
+        def handle_one_request(self):
+            try:
+                super().handle_one_request()
+            except Exception:
+                LOG.exception("request crashed")
+
+
         def _send(self, code: int, body) -> None:
             data = json.dumps(body, ensure_ascii=False).encode("utf-8")
+            LOG.info("OUT %s %s %.1fs %s", code, self.path, time.time() - getattr(self, "_t0", time.time()),
+                     data[:300].decode("utf-8", "replace"))
             self.send_response(code)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
@@ -37,6 +56,9 @@ def make_handler(arm, shutdown):
             return json.loads(self.rfile.read(length).decode("utf-8")) if length else {}
 
         def do_GET(self):
+            self._t0 = time.time()
+            if self.path != "/control/state":
+                LOG.info("IN GET %s", self.path)
             try:
                 if self.path == "/control/state":
                     return self._send(200, arm.state())
@@ -48,9 +70,11 @@ def make_handler(arm, shutdown):
                 self._send(500, {"error": str(exc)})
 
         def do_POST(self):
+            self._t0 = time.time()
             try:
                 data = self._body()
                 route = self.path
+                LOG.info("IN POST %s %s", route, json.dumps(data, ensure_ascii=False)[:300])
                 if route == "/control/start":
                     return self._send(200, arm.start(
                         data["run_id"], data["character"], data["lang"], data["clock_start"],
@@ -74,7 +98,7 @@ def make_handler(arm, shutdown):
                     return None
                 self._send(404, {"error": "not found"})
             except Exception as exc:
-                traceback.print_exc()
+                LOG.exception("handler error")
                 self._send(500, {"error": f"{type(exc).__name__}: {exc}"})
 
     return Handler
@@ -99,12 +123,17 @@ def serve(port: int, arm=None, ticket_who: str | None = None) -> None:
     from harness.arm import Arm
 
     arm = arm or Arm()
+    LOG.info("server boot port=%s ticket_who=%s", port, ticket_who)
     ticket = take_ticket(ticket_who, 1.0, 1.5) if ticket_who else None
+    LOG.info("ticket %s", ticket)
     httpd = None
     try:
         httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(arm, lambda: httpd.shutdown()))
+        httpd.daemon_threads = True
+        LOG.info("listening")
         httpd.serve_forever()
     finally:
+        LOG.info("server stopping")
         try:
             arm.stop()
         except Exception:
@@ -117,7 +146,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--ticket-who", default=None)
+    parser.add_argument("--log-file", default=None)
     args = parser.parse_args()
+    setup_logging(args.log_file)
     serve(args.port, ticket_who=args.ticket_who)
 
 

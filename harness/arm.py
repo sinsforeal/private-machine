@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import copy
 import json
+import logging
 import os
 import shutil
 import threading
@@ -22,6 +23,8 @@ import yaml
 os.environ.setdefault("PM_COMPLETION_CACHE", "0")
 
 from pm import vclock  # noqa: E402
+
+LOG = logging.getLogger("bz.arm")
 
 GATEWAY = "http://127.0.0.1:18330"
 EMBED_MODEL = "intfloat/multilingual-e5-small"
@@ -95,9 +98,12 @@ class Arm:
     # ------------------------------------------------------------- start
     def start(self, run_id: str, character: str, lang: str, clock_start: str,
               cognition: str = "real", base_url: str | None = None) -> dict:
+        t0 = time.time()
+        LOG.info("start: importing")
         from harness import cards
         from pm.app.character_cli import init_home
         from pm.app.character_home import CharacterHome
+        LOG.info("start: imports done %.1fs", time.time() - t0)
 
         with self.lock:
             self.run_id, self.character, self.lang, self.cognition = run_id, character, lang, cognition
@@ -116,7 +122,9 @@ class Arm:
                       card=card, timestamp_format="%Y-%m-%d %H:%M", force=True)
             self.config_path = self.home / "model_config.yaml"
             self.config_path.write_text(yaml.safe_dump(self._model_config(), allow_unicode=True), encoding="utf-8")
+            LOG.info("start: init_home done %.1fs", time.time() - t0)
             self._build()
+            LOG.info("start: build done %.1fs", time.time() - t0)
             self._write_clock()
             return {"ok": True, "home": str(self.home), "virtual_ts": _iso(self.clock.now())}
 
@@ -133,15 +141,19 @@ class Arm:
         from pm.llm.mcp_config import ToolCallConfig
         from workflows.companion import build_app
 
+        t0 = time.time()
         ghost = CharacterHome(self.home).open_store()
+        LOG.info("build: store open %.1fs", time.time() - t0)
         self.app = build_app(
             seed_path=None, runtime_root=self.home / "runtime", clock=vclock.monotonic,
             emit_reply=self._emit, ghost=ghost, cognition=self.cognition,
             config_path=str(self.config_path), world_poll_seconds=None, tool_call=ToolCallConfig(),
             record_lifecycle=True,
         )
+        LOG.info("build: build_app done %.1fs", time.time() - t0)
         self._apply_injects()
         self.app.run()
+        LOG.info("build: app.run returned %.1fs", time.time() - t0)
 
     def _teardown(self) -> None:
         if self.app is None:
@@ -234,12 +246,17 @@ class Arm:
     def advance(self, to: str) -> dict:
         with self.lock:
             target = _naive_local(to)
+            t0 = time.time()
             self._deliver_env()
             self._quiet()
+            steps = 0
             while self.clock.now() < target:
-                self._set(self._next_stop(target))
+                stop = self._next_stop(target)
+                self._set(stop)
                 self._deliver_env()
                 self._quiet()
+                steps += 1
+                LOG.info("advance: step %d to %s quiet at %.1fs", steps, stop.isoformat(), time.time() - t0)
             self._write_clock()
             outs, self.carry = self.carry, []
             return {"outputs": outs}
@@ -378,6 +395,8 @@ class Arm:
         return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 
     def state(self) -> dict:
+        if self.app is None or self.clock is None:
+            return {"started": False}
         try:
             ghost = self.app.ghost
             last = ghost.states[-1] if ghost.states else None

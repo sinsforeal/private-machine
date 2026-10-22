@@ -17,7 +17,7 @@ from pathlib import Path
 from harness.launch import RUNS, launch
 
 
-def call(port: int, method: str, path: str, body: dict | None = None, timeout: float = 3600):
+def call(port: int, method: str, path: str, body: dict | None = None, timeout: float = 60):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", data=data, method=method,
                                  headers={"Content-Type": "application/json"})
@@ -34,7 +34,17 @@ def main(mode: str) -> int:
         "cap_usd": 0.20, "sim_days": 1, "clock_start": "2026-10-23T09:00:00+09:00", "seed": 1,
         "status": "running"}), encoding="utf-8")
     port = launch(run_id)
-    for _ in range(300):
+    try:
+        return run(mode, run_id, run_dir, port)
+    finally:
+        try:
+            call(port, "POST", "/control/stop", {}, timeout=30)
+        except Exception:
+            pass
+
+
+def run(mode: str, run_id: str, run_dir: Path, port: int) -> int:
+    for _ in range(120):
         try:
             call(port, "GET", "/control/state", timeout=2)
             break
@@ -65,7 +75,7 @@ def main(mode: str) -> int:
     print("trace keys", sorted(trace), "calls", len(trace["calls"]))
     call(port, "POST", "/control/snapshot", {"name": "s1"})
     before = json.loads((run_dir / "clock.json").read_text())["virtual_ts"]
-    call(port, "POST", "/control/advance", {"to": "2026-10-23T12:00:00+09:00"})
+    call(port, "POST", "/control/advance", {"to": "2026-10-23T12:00:00+09:00"}, timeout=900)
     mid = json.loads((run_dir / "clock.json").read_text())["virtual_ts"]
     call(port, "POST", "/control/restore", {"name": "s1"})
     after = json.loads((run_dir / "clock.json").read_text())["virtual_ts"]

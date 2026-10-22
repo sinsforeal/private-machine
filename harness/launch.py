@@ -36,7 +36,8 @@ def launch(run_id: str, port: int | None = None) -> int:
            "PYTHONPATH": str(ROOT), "PYTHONUTF8": "1"}
     log = open(log_dir / "p_server.log", "ab")
     subprocess.Popen([str(pythonw), "-m", "harness.server", "--port", str(port),
-                      "--ticket-who", f"scail/bz_p_{run_id}"],
+                      "--ticket-who", f"scail/bz_p_{run_id}",
+                      "--log-file", str(log_dir / "p_control.log")],
                      cwd=str(ROOT), env=env, stdout=log, stderr=log, stdin=subprocess.DEVNULL,
                      creationflags=NO_WINDOW)
     return port
