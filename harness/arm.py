@@ -35,6 +35,15 @@ VAR = Path(r"F:\REPS2\SCAILV4\var\bzombie")
 FAST_MODULES = {"scheduler", "focus_management", "cognitive_control"}
 
 
+#: Main-cognition phase names an inject may skip (workflows.main_cognition.steps).
+VALID_PHASES = {"triage", "appraise", "retrieve", "codelets", "structures", "attention", "experience", "goals",
+                "decide", "route", "commit"}
+
+
+class BadRequest(ValueError):
+    """An inject the arm cannot apply because the target is unknown. The server answers 400."""
+
+
 def _naive_local(text: str) -> datetime:
     value = datetime.fromisoformat(text)
     if value.tzinfo is not None:
@@ -79,6 +88,8 @@ class Arm:
         self.injects: dict[str, str] = {}
         self.base_url = ""
         self.config_path = Path()
+        self.module_errors: list[dict] = []  # guarded module exceptions since the last output
+        self.module_error_total = 0
 
     # ----------------------------------------------------------- paths/io
     def _write_json(self, path: Path, data: Any) -> None:
@@ -151,9 +162,43 @@ class Arm:
             record_lifecycle=True,
         )
         LOG.info("build: build_app done %.1fs", time.time() - t0)
+        self._guard_modules()
         self._apply_injects()
         self.app.run()
         LOG.info("build: app.run returned %.1fs", time.time() - t0)
+
+    def _guard_modules(self) -> None:
+        """Harness guard: one module exception is logged and counted, the app keeps running.
+
+        Wraps each module's handle_batch on the instance. The step itself is not changed: it still raises
+        inside, we only stop the exception from reaching Application.on_error (which shuts the app down).
+        """
+        for module in self.app.modules:
+            original = module.handle_batch
+
+            def guarded(batch, _orig=original, _id=module.module_id):
+                try:
+                    return _orig(batch)
+                except Exception as exc:
+                    self._note_module_error(_id, exc)
+                    return None
+
+            module.handle_batch = guarded
+
+    def _note_module_error(self, module_id: str, exc: Exception) -> None:
+        entry = {"module": str(module_id), "type": type(exc).__name__, "message": str(exc)[:300],
+                 "virtual_ts": _iso(self.clock.now()) if self.clock else None}
+        self.module_errors.append(entry)
+        self.module_error_total += 1
+        LOG.error("module %s raised %s: %s (guarded, run continues)", module_id, entry["type"], entry["message"],
+                  exc_info=(type(exc), exc, exc.__traceback__))
+        try:
+            logs = self.run_dir / "logs"
+            logs.mkdir(parents=True, exist_ok=True)
+            with open(logs / "module_errors.jsonl", "a", encoding="utf-8") as handle:
+                handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except OSError:
+            pass
 
     def _teardown(self) -> None:
         if self.app is None:
@@ -172,6 +217,7 @@ class Arm:
         kind = "reply" if self.awaiting else "unprompted"
         self.awaiting = False
         calls, self.calls = self.calls, []
+        errors, self.module_errors = self.module_errors, []
         chat = [c for c in calls if "chat" in c["role"]]
         out = {"output_id": output_id, "virtual_ts": _iso(now), "text": text, "kind": kind,
                "call_ids": [c["call_id"] for c in calls]}
@@ -190,6 +236,7 @@ class Arm:
             ],
             "state_at_output": self.state(),
             "causal": self._causal(),
+            "module_errors": {"count": len(errors), "items": errors},
         })
 
     def _causal(self) -> dict:
@@ -349,6 +396,8 @@ class Arm:
         from workflows.main_cognition import steps
         kind, _, name = target.partition(".")
         if kind == "phase":
+            if name not in VALID_PHASES:
+                raise BadRequest(f"unknown phase {name!r}; valid: {sorted(VALID_PHASES)}")
             (steps.SKIPPED_PHASES.add if value in ("skip", "off", True) else steps.SKIPPED_PHASES.discard)(name)
             return {"skipped_phases": sorted(steps.SKIPPED_PHASES)}
         if kind == "private_loop":
@@ -359,6 +408,9 @@ class Arm:
                 module._next_tick = module.clock() + module.tick_seconds
             return {"private_loop": "off" if module._next_tick is None else "on"}
         if kind == "codelet":
+            known = self._codelet_names()
+            if name not in known:
+                raise BadRequest(f"unknown codelet {name!r}; valid: {sorted(known)}")
             off = {n for t, v in self.injects.items() if t.startswith("codelet.") and v in ("off", False)
                    for n in [t.split(".", 1)[1]]}
             source = Path(self.app.main_cog.codelet_definitions or
@@ -387,7 +439,12 @@ class Arm:
                 else:
                     object.__setattr__(obj, parts[-1], new)
             return {"state": name, "old": _jsonable(old, 200), "new": _jsonable(new, 200)}
-        raise ValueError(f"unknown inject target {target!r}")
+        raise BadRequest(f"unknown inject target {target!r}; kinds: phase, private_loop, codelet, state")
+
+    @staticmethod
+    def _codelet_names() -> set[str]:
+        path = Path(__file__).resolve().parents[1] / "workflows" / "main_cognition" / "codelets.yaml"
+        return {c["name"] for c in yaml.safe_load(path.read_text(encoding="utf-8"))["codelets"]}
 
     # --------------------------------------------------------- queries
     def trace(self, output_id: str) -> dict | None:
@@ -403,7 +460,8 @@ class Arm:
             control = getattr(self.app, "cognitive_control", None)
             return {"virtual_ts": _iso(self.clock.now()), "cycles": len(ghost.states),
                     "waiting": bool(control and control.waiting()),
-                    "mental_state": _jsonable(last, 3000), "injects": self.injects}
+                    "mental_state": _jsonable(last, 3000), "injects": self.injects,
+                    "module_errors_total": self.module_error_total}
         except Exception as exc:
             return {"virtual_ts": _iso(self.clock.now()), "unavailable": str(exc)[:200]}
 

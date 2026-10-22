@@ -98,6 +98,9 @@ def make_handler(arm, shutdown):
                     return None
                 self._send(404, {"error": "not found"})
             except Exception as exc:
+                if type(exc).__name__ == "BadRequest":  # harness.arm.BadRequest, imported lazily
+                    LOG.info("bad request: %s", exc)
+                    return self._send(400, {"error": str(exc)})
                 LOG.exception("handler error")
                 self._send(500, {"error": f"{type(exc).__name__}: {exc}"})
 
