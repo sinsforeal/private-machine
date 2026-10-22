@@ -127,7 +127,7 @@ def serve(port: int, arm=None, ticket_who: str | None = None, run_id: str | None
 
     arm = arm or Arm()
     LOG.info("server boot port=%s ticket_who=%s", port, ticket_who)
-    ticket = take_ticket(ticket_who, 1.0, 1.5) if ticket_who else None
+    ticket = take_ticket(ticket_who, 1.0, 0.5) if ticket_who else None  # peak working set 303 MB on live Tomoe, 2026-10-22
     LOG.info("ticket %s", ticket)
     httpd = None
     try:
