@@ -30,8 +30,8 @@ def call(port: int, method: str, path: str, body: dict | None = None, timeout: f
 STAMP = re.compile(r"^\s*\[[A-Z][a-z]{2}[ ,]+\d{1,2}:\d{2}\]", re.M)
 
 
-def run_live(run_id: str, run_dir: Path, port: int) -> int:
-    """Momoka, Japanese, real cognition through the gateway: per-reply numbers."""
+def run_live(run_id: str, run_dir: Path, port: int, tomoe: bool = False) -> int:
+    """Momoka (ja, 2 turns) or Tomoe (en, 1 turn), real cognition through the gateway: per-reply numbers."""
     for _ in range(120):
         try:
             call(port, "GET", "/control/state", timeout=2)
@@ -40,11 +40,12 @@ def run_live(run_id: str, run_dir: Path, port: int) -> int:
             time.sleep(1)
     t = time.time()
     print("start", call(port, "POST", "/control/start", {
-        "run_id": run_id, "character": "momoka", "lang": "ja", "clock_start": "2026-10-23T21:30:00+09:00",
-        "cognition": "real"}, timeout=300), "wall", round(time.time() - t, 1))
-    call(port, "POST", "/control/env", {"events": [{
-        "ts": "2026-10-23T21:30:30+09:00", "kind": "pc", "text": "Window title: YouTube - Google Chrome",
-        "source": "env_script/1"}]})
+        "run_id": run_id, "character": "tomoe" if tomoe else "momoka", "lang": "en" if tomoe else "ja",
+        "clock_start": "2026-10-23T21:30:00+09:00", "cognition": "real"}, timeout=300), "wall", round(time.time() - t, 1))
+    if not tomoe:
+        call(port, "POST", "/control/env", {"events": [{
+            "ts": "2026-10-23T21:30:30+09:00", "kind": "pc", "text": "Window title: YouTube - Google Chrome",
+            "source": "env_script/1"}]})
 
     def gateway_calls() -> list[dict]:
         path = run_dir / "calls.jsonl"
@@ -55,6 +56,8 @@ def run_live(run_id: str, run_dir: Path, port: int) -> int:
     summary = []
     turns = [("2026-10-23T21:31:00+09:00", "ただいま。バイト長引いてさ、疲れた"),
              ("2026-10-23T21:50:00+09:00", "今日の夜ごはん何にしようかな")]
+    if tomoe:
+        turns = [("2026-10-23T21:31:00+09:00", "hey, how was your first week of classes?")]
     for ts, text in turns:
         n_before = len(gateway_calls())
         wall0 = time.time()
@@ -96,16 +99,17 @@ def main(mode: str) -> int:
     run_id = f"bz_p_e2e_{mode}_{int(time.time()) % 100000}"
     run_dir = RUNS / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
-    live = mode == "live"
+    live = mode in ("live", "live_tomoe")
     (run_dir / "config.json").write_text(json.dumps({
-        "run_id": run_id, "arm": "P", "character": "momoka" if live else "tomoe", "lang": "ja" if live else "en",
+        "run_id": run_id, "arm": "P", "character": "momoka" if mode == "live" else "tomoe",
+        "lang": "ja" if mode == "live" else "en",
         "model": "deepseek-v4.1-flash-1017",
         "cap_usd": 0.20, "sim_days": 1, "clock_start": "2026-10-23T09:00:00+09:00", "seed": 1,
         "status": "running"}), encoding="utf-8")
     port = launch(run_id)
     try:
         if live:
-            return run_live(run_id, run_dir, port)
+            return run_live(run_id, run_dir, port, tomoe=mode == "live_tomoe")
         return run(mode, run_id, run_dir, port)
     finally:
         try:
