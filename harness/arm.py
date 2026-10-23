@@ -97,8 +97,11 @@ class Arm:
         path.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
 
     def _transcript(self, line: dict) -> None:
+        # Not transcript.jsonl: the harness driver owns that file (it appends his lines, hers and env lines
+        # itself, with an index). Writing it here as well doubled every event. Our own log is arm_events.jsonl.
         line["sim_day"] = (self.clock.now().date() - self.start_time.date()).days + 1
-        with open(self.run_dir / "transcript.jsonl", "a", encoding="utf-8") as handle:
+        (self.run_dir / "logs").mkdir(parents=True, exist_ok=True)
+        with open(self.run_dir / "logs" / "arm_events.jsonl", "a", encoding="utf-8") as handle:
             handle.write(json.dumps(line, ensure_ascii=False) + "\n")
 
     def _write_clock(self) -> None:
