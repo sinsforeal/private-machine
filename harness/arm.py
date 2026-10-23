@@ -257,7 +257,7 @@ class Arm:
     def _modules(self):
         return list(self.app.modules)
 
-    def _quiet(self, timeout: float = 1800.0) -> None:
+    def _quiet(self, timeout: float = 7200.0) -> None:  # = harness armclient 7200 s; Surplus stalls ate 1800 s (cl2_p_momoka 10-23)
         deadline = time.time() + timeout
         stable = 0
         while stable < 3:
