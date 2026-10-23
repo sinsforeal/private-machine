@@ -127,7 +127,9 @@ def serve(port: int, arm=None, ticket_who: str | None = None, run_id: str | None
 
     arm = arm or Arm()
     LOG.info("server boot port=%s ticket_who=%s", port, ticket_who)
-    ticket = take_ticket(ticket_who, 1.0, 0.5) if ticket_who else None  # peak working set 303 MB on live Tomoe, 2026-10-22
+    # Honest need: cl2_p_tomoe reached 9.7 GB at 10.7 virtual hours (10-23; growth tk-3tj). 0.5 GB was an early-run reading.
+    import os
+    ticket = take_ticket(ticket_who, 1.0, float(os.environ.get("BZ_P_MEM_GB", "11"))) if ticket_who else None
     LOG.info("ticket %s", ticket)
     httpd = None
     try:
