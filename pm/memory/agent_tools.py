@@ -359,6 +359,12 @@ class MemoryReadSession:
         """Revoke this group's tools after native agent cleanup."""
         with self._lock:
             self._closed = True
+            # Harness fairness patch 3 (2026-10-23): the FastMCP tool registry holds bound methods of this session
+            # in pydantic validators that the garbage collector cannot see through, so the session outlives its run
+            # and pins the whole snapshot (about 22 MB per run at 520 records). A closed session answers nothing
+            # (check_cancelled raises), so drop the data. Nothing a prompt sees or a decision uses changes.
+            self.records, self.references, self.adjacency, self.accessed = {}, {}, defaultdict(list), {}
+            self.snapshot = Snapshot({}, {}, {}, self.snapshot.embedding_index)
 
     def __enter__(self) -> MemoryReadSession:
         return self
