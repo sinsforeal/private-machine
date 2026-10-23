@@ -162,7 +162,9 @@ class Arm:
             seed_path=None, runtime_root=self.home / "runtime", clock=vclock.monotonic,
             emit_reply=self._emit, ghost=ghost, cognition=self.cognition,
             config_path=str(self.config_path), world_poll_seconds=None, tool_call=ToolCallConfig(),
-            record_lifecycle=True,
+            # fairness patch (PR_NOTES 2): a bench run is a first meeting, not a restart after a crash; the
+            # startup record ("I started again ... no record of a clean shutdown") made Tomoe invent a past
+            record_lifecycle=False,
         )
         LOG.info("build: build_app done %.1fs", time.time() - t0)
         self._guard_modules()
