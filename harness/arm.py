@@ -382,8 +382,17 @@ class Arm:
     # ---------------------------------------------------------- inject
     def inject(self, target: str, value: Any) -> dict:
         with self.lock:
+            had, old = target in self.injects, self.injects.get(target)
             self.injects[target] = value
-            result = self._apply_one(target, value)
+            try:
+                result = self._apply_one(target, value)
+            except Exception:
+                # a rejected inject must not stay recorded (it was re-applied by later codelet calls)
+                if had:
+                    self.injects[target] = old
+                else:
+                    self.injects.pop(target, None)
+                raise
             return {"ok": True, **result}
 
     def _apply_injects(self) -> None:
